@@ -1,106 +1,118 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import React, { createContext, useReducer, useContext, useState } from "react";
+import { View, Text, TextInput, Button, FlatList, StyleSheet, TouchableOpacity } from "react-native";
 
-export default function CrudApp() {
-  const [items, setItems] = useState([]);
-  const [input, setInput] = useState("");
-  const [editingIndex, setEditingIndex] = useState(null);
+// Initial State
+const initialState = {
+  users: [],
+};
 
-  const handleAdd = () => {
-    if (input.trim() === "") return;
-    if (editingIndex !== null) {
-      const updatedItems = [...items];
-      updatedItems[editingIndex] = input;
-      setItems(updatedItems);
-      setEditingIndex(null);
-    } else {
-      setItems([...items, input]);
-    }
-    setInput("");
-  };
+// Reducer Function
+const userReducer = (state, action) => {
+  switch (action.type) {
+    case "ADD_USER":
+      return { ...state, users: [...state.users, action.payload] };
+    case "EDIT_USER":
+      return {
+        ...state,
+        users: state.users.map((user) =>
+          user.id === action.payload.id ? action.payload : user
+        ),
+      };
+    case "DELETE_USER":
+      return {
+        ...state,
+        users: state.users.filter((user) => user.id !== action.payload),
+      };
+    default:
+      return state;
+  }
+};
 
-  const handleEdit = (index) => {
-    setInput(items[index]);
-    setEditingIndex(index);
-  };
+// Create Context
+const UserContext = createContext();
 
-  const handleDelete = (index) => {
-    setItems(items.filter((_, i) => i !== index));
+// Provider Component
+const UserProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(userReducer, initialState);
+  return (
+    <UserContext.Provider value={{ state, dispatch }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+const UserList = () => {
+  const { state, dispatch } = useContext(UserContext);
+  return (
+    <FlatList
+      data={state.users}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={({ item }) => (
+        <View style={styles.itemContainer}>
+          <Text>{item.name}</Text>
+          <TouchableOpacity onPress={() => {}}>
+            <Text style={{color:"blue", marginLeft:1600}}>Edit</Text>
+          </TouchableOpacity> 
+          <TouchableOpacity onPress={() => dispatch({ type: "DELETE_USER", payload: item.id })} >
+            <Text style={{color:"blue", marginLeft:-50}}>Delete</Text>
+          </TouchableOpacity> 
+        </View>
+      )}
+    />
+  );
+};
+
+const AddUser = () => {
+  const { dispatch } = useContext(UserContext);
+  const [name, setName] = useState("");
+
+  const addUser = () => {
+    if (name.trim() === "") return;
+    dispatch({ type: "ADD_USER", payload: { id: Date.now(), name } });
+    setName("");
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>CRUD</Text>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Enter item"
-        />
-        <Button title={editingIndex !== null ? "Update" : "Add"} onPress={handleAdd} />
-      </View>
-      <FlatList
-        data={items}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <View style={styles.item}>
-            <Text>{item}</Text>
-            <View style={styles.buttons}>
-              <TouchableOpacity onPress={() => handleEdit(index)} style={styles.editButton}>
-                <Text>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(index)} style={styles.deleteButton}>
-                <Text>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      />
+    <View style={styles.inputContainer}>
+      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Enter name" />
+      <Button title="Add User" onPress={addUser} />
     </View>
   );
-}
+};
+
+const App = () => {
+  return (
+    <UserProvider>
+      <View style={styles.container}>
+        <Text style={styles.header}>Crud</Text>
+        <AddUser />
+        <UserList />
+      </View>
+    </UserProvider>
+  );
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
+  container: { 
+    flex: 1, 
+    padding: 20, 
+    marginTop: 10 },
+  header: { 
+    fontSize: 24, 
     fontWeight: "bold",
-    marginBottom: 20,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    marginBottom: 10,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    padding: 10,
+     marginBottom: 20 },
+  inputContainer: { 
+    flexDirection: "row", 
+    marginBottom: 10 },
+  input: { flex: 1, 
+    borderWidth: 1, 
+    padding: 8, 
     marginRight: 10,
-    borderRadius: 5,
-  },
-  item: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 10,
-    borderBottomWidth: 1,
-  },
-  buttons: {
-    flexDirection: "row",
-  },
-  editButton: {
-    marginRight: 10,
-    padding: 5,
-    backgroundColor: "lightblue",
-    borderRadius: 5,
-  },
-  deleteButton: {
-    padding: 5,
-    backgroundColor: "red",
-    borderRadius: 5,
-  },
+     borderRadius: 5 },
+  itemContainer: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    marginBottom: 10 },
 });
+
+export default App;
